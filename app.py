@@ -6,6 +6,69 @@ import io
 from typing import List, Optional, Dict, Tuple
 import numpy as np
 import re
+import json
+import os
+from datetime import datetime
+
+# ================================
+# DATA PERSISTENCE FUNCTIONS
+# ================================
+def save_data_to_file(data: pd.DataFrame, filename: str = "cached_data.json"):
+    """Save DataFrame to JSON file"""
+    try:
+        if not data.empty:
+            # Convert DataFrame to JSON
+            data_dict = {
+                'data': data.to_dict('records'),
+                'timestamp': datetime.now().isoformat(),
+                'columns': list(data.columns)
+            }
+            
+            # Create data directory if it doesn't exist
+            os.makedirs('data', exist_ok=True)
+            
+            # Save to file
+            filepath = os.path.join('data', filename)
+            with open(filepath, 'w') as f:
+                json.dump(data_dict, f, default=str)
+            
+            return True
+    except Exception as e:
+        st.error(f"Error saving data: {e}")
+        return False
+
+def load_data_from_file(filename: str = "cached_data.json") -> pd.DataFrame:
+    """Load DataFrame from JSON file"""
+    try:
+        filepath = os.path.join('data', filename)
+        if os.path.exists(filepath):
+            with open(filepath, 'r') as f:
+                data_dict = json.load(f)
+            
+            # Convert back to DataFrame
+            df = pd.DataFrame(data_dict['data'])
+            
+            # Convert date columns back to datetime if they exist
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            
+            return df
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame()
+    
+    return pd.DataFrame()
+
+def list_saved_data_files() -> List[str]:
+    """List all saved data files"""
+    try:
+        data_dir = 'data'
+        if os.path.exists(data_dir):
+            files = [f for f in os.listdir(data_dir) if f.endswith('.json')]
+            return files
+    except:
+        pass
+    return []
 
 # ================================
 # FILE UPLOADER CLASS
@@ -291,11 +354,51 @@ def main():
     if 'uploaded_data' not in st.session_state:
         st.session_state.uploaded_data = []
     if 'processed_data' not in st.session_state:
-        st.session_state.processed_data = pd.DataFrame()
+        # Try to load cached data on startup
+        cached_data = load_data_from_file()
+        st.session_state.processed_data = cached_data
+    
+    # Try to load data from uploaded file in session
+    if 'data_cache' not in st.session_state:
+        st.session_state.data_cache = None
 
     # Sidebar for controls
     with st.sidebar:
         st.header("📁 File Upload")
+        
+        # Show data persistence options
+        st.subheader("💾 Data Persistence")
+        
+        # Show current data status
+        if not st.session_state.processed_data.empty:
+            st.success(f"📊 {len(st.session_state.processed_data)} tractors loaded")
+            
+            # Save current data
+            if st.button("💾 Save Data"):
+                if save_data_to_file(st.session_state.processed_data):
+                    st.success("✅ Data saved successfully!")
+            
+            # Clear current data
+            if st.button("🗑️ Clear Data"):
+                st.session_state.processed_data = pd.DataFrame()
+                st.session_state.uploaded_data = []
+                st.session_state.data_cache = None
+                st.rerun()
+        
+        # Load saved data files
+        saved_files = list_saved_data_files()
+        if saved_files:
+            st.subheader("📂 Load Saved Data")
+            selected_file = st.selectbox("Choose saved data:", [""] + saved_files)
+            if selected_file and st.button("� Load Selected"):
+                loaded_data = load_data_from_file(selected_file)
+                if not loaded_data.empty:
+                    st.session_state.processed_data = loaded_data
+                    st.session_state.data_cache = loaded_data.copy()
+                    st.success(f"✅ Loaded {len(loaded_data)} tractors from {selected_file}")
+                    st.rerun()
+        
+        st.header("📁 Upload New Files")
         file_uploader = FileUploader()
         uploaded_files = file_uploader.render()
         
@@ -304,12 +407,21 @@ def main():
             new_data = processor.process_files(uploaded_files)
             
             if not new_data.empty:
-                st.session_state.uploaded_data.append(new_data)
-                st.session_state.processed_data = pd.concat(
-                    st.session_state.uploaded_data, 
-                    ignore_index=True
-                ).drop_duplicates()
+                # Add new data to existing data
+                if not st.session_state.processed_data.empty:
+                    st.session_state.processed_data = pd.concat([
+                        st.session_state.processed_data, 
+                        new_data
+                    ], ignore_index=True).drop_duplicates()
+                else:
+                    st.session_state.processed_data = new_data
+                
+                # Auto-save the updated data
+                save_data_to_file(st.session_state.processed_data)
+                
                 st.success(f"✅ Processed {len(uploaded_files)} file(s)")
+                st.info("💾 Data automatically saved!")
+                st.rerun()
 
         st.header("📊 Visualization Options")
         viz_options = st.multiselect(
@@ -480,6 +592,20 @@ def main():
     else:
         # Welcome message and sample data
         st.info("👆 Upload CSV files using the sidebar to get started!")
+        
+        # Show data persistence explanation
+        st.subheader("💾 Data Persistence")
+        st.markdown("""
+        **Your data now persists across devices and sessions!**
+        
+        🔄 **Automatic Saving**: Data is automatically saved when you upload files
+        
+        📱 **Cross-Device Access**: Open this app on any device to access your saved data
+        
+        💾 **Manual Save/Load**: Use the sidebar to save current data or load previously saved datasets
+        
+        🗑️ **Data Management**: Clear data when you want to start fresh
+        """)
         
         st.subheader("📋 Expected CSV Format")
         sample_data = pd.DataFrame({
