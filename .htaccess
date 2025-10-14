@@ -1,0 +1,18 @@
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ wsgi.py/$1 [QSA,L]
+
+# Set Python version (adjust if needed)
+AddHandler application/x-httpd-ea-php81 .py
+
+# Security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+
+# File upload limits
+php_value upload_max_filesize 50M
+php_value post_max_size 50M
+php_value max_execution_time 300
+php_value max_input_time 300
