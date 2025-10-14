@@ -1,0 +1,11 @@
+nickname,last_known_engine_hrs,date,location
+Tractor_A,1250.5,2025-10-14,Field_1
+Tractor_B,890.2,2025-10-14,Field_2
+Tractor_C,2100.0,2025-10-14,Field_3
+Tractor_D,456.8,2025-10-13,Field_1
+Tractor_E,850.1,2025-10-13,Field_4
+Tractor_F,1875.3,2025-10-12,Field_2
+Big_Red,750.7,2025-10-12,Field_5
+Iron_Horse,1456.9,2025-10-11,Field_3
+Green_Giant,567.4,2025-10-11,Field_1
+Workhorse,823.8,2025-10-10,Field_6
