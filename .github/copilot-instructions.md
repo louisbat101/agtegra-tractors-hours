@@ -44,7 +44,7 @@
 	- Interactive visualizations working properly
 	-->
 
-- [ ] Launch the Project
+- [x] Launch the Project
 	<!--
 	Verify that all previous steps have been completed.
 	Prompt user for debug mode, launch only if confirmed.

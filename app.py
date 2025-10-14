@@ -2,11 +2,25 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from components.file_uploader import FileUploader
-from components.data_processor import DataProcessor
-from components.visualizations import Visualizations
-from utils.data_utils import DataUtils
+import sys
+import os
 import io
+
+# Add the current directory to Python path for module imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# Import components with error handling
+try:
+    from components.file_uploader import FileUploader
+    from components.data_processor import DataProcessor
+    from components.visualizations import Visualizations
+    from utils.data_utils import DataUtils
+except ImportError as e:
+    st.error(f"Import error: {e}")
+    st.error("Please ensure all required files are present in the repository.")
+    st.stop()
 
 def main():
     st.set_page_config(
