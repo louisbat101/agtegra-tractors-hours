@@ -52,12 +52,38 @@ def load_data_from_file(filename: str = "cached_data.json") -> pd.DataFrame:
             if 'date' in df.columns:
                 df['date'] = pd.to_datetime(df['date'], errors='coerce')
             
+            # Remove duplicates keeping highest engine hours
+            df = remove_duplicates_keep_highest(df)
+            
             return df
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
     
     return pd.DataFrame()
+
+def remove_duplicates_keep_highest(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove duplicate nicknames, keeping only the record with highest engine hours"""
+    if df.empty or 'nickname' not in df.columns or 'engine_hours' not in df.columns:
+        return df
+    
+    original_count = len(df)
+    duplicate_count = df.duplicated(subset=['nickname']).sum()
+    
+    # Sort by engine_hours in descending order and drop duplicates by nickname
+    # This keeps the first occurrence which will be the highest engine hours
+    cleaned_df = df.sort_values('engine_hours', ascending=False).drop_duplicates(
+        subset=['nickname'], keep='first'
+    )
+    
+    # Sort back by nickname for consistent display
+    cleaned_df = cleaned_df.sort_values('nickname').reset_index(drop=True)
+    
+    # Show info about removed duplicates
+    if duplicate_count > 0:
+        st.info(f"🔧 Removed {duplicate_count} duplicate entries, keeping highest engine hours for each nickname")
+    
+    return cleaned_df
 
 def list_saved_data_files() -> List[str]:
     """List all saved data files"""
@@ -409,12 +435,15 @@ def main():
             if not new_data.empty:
                 # Add new data to existing data
                 if not st.session_state.processed_data.empty:
-                    st.session_state.processed_data = pd.concat([
+                    combined_data = pd.concat([
                         st.session_state.processed_data, 
                         new_data
-                    ], ignore_index=True).drop_duplicates()
+                    ], ignore_index=True)
+                    
+                    # Remove duplicates by keeping the highest engine hours for each nickname
+                    st.session_state.processed_data = remove_duplicates_keep_highest(combined_data)
                 else:
-                    st.session_state.processed_data = new_data
+                    st.session_state.processed_data = remove_duplicates_keep_highest(new_data)
                 
                 # Auto-save the updated data
                 save_data_to_file(st.session_state.processed_data)
